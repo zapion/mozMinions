@@ -1,0 +1,5 @@
+{
+  "name": "b2g-ps cmd",
+  "serial": "e481d81e",
+  "command": "adb shell b2g-ps"
+  }

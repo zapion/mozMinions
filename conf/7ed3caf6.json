@@ -1,0 +1,8 @@
+{
+  "name": "b2g-info cmd",
+  "serial": "7ed3caf6",
+  "command": "adb shell b2g-info",
+  "output": {
+            "file": "b2g_info"
+            }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "b2g_ps",
+  "serial": "",
+  "command": "adb shell b2g-ps -t -p -P --oom"
+  }

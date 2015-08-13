@@ -35,7 +35,8 @@ class Boss(object):
             minion = ShellMinion(**data)
             self.workers.append(minion)
             self.scheduler.add_job(minion.collect, 'interval',
-                                   name=minion.name+'_'+minion.serial, seconds=2
+                                   name=minion.name+'_'+minion.serial,
+                                   seconds=30
                                    )
 
     def list(self):
@@ -55,7 +56,6 @@ class Boss(object):
 
     def remove_advanced(self):
         '''
-        TBD
         TODO:
         1. remove by start, end
         2. by directory(?)
@@ -94,16 +94,16 @@ class Boss(object):
 
 
 def main():
-    b = Boss()
+    # b = Boss()
     # b.load('./e481d81e.json')
-    b.load('./conf/7ed3caf6.json')
+    # b.load('./conf/7ed3caf6.json')
     print('Press Ctrl+{0} to exit'.format('Break' if os.name == 'nt' else 'C'))
 
     try:
         # This is here to simulate application activity (which keeps the main
         # thread alive).
         while True:
-            time.sleep(2)
+            time.sleep(5)
     except (KeyboardInterrupt, SystemExit):
             pass
 

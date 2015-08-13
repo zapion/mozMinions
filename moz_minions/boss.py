@@ -1,58 +1,127 @@
 #!/usr/bin/python
 import os
+import sys
 import json
 import time
+import argparse
 from apscheduler.schedulers.background import BackgroundScheduler
-# from apscheduler.triggers.inteval import IntervalTrigger
+from watchdog.observers import Observer
+from watchdog.events import PatternMatchingEventHandler
 from minions import ShellMinion
 
 
-class Boss(object):
-    default_path = None
-    workers = []
+class JsonHandler(PatternMatchingEventHandler):
+    def set_handler(self, oncreated=None, onmodified=None, ondeleted=None):
+        self.create_handler = oncreated
+        self.modify_handler = onmodified
+        self.delete_handler = ondeleted
 
-    def __init__(self):
+    def on_created(self, event):
+        self.create_handler(event.src_path)
+
+    def on_modified(self, event):
+        self.modify_handler(event.src_path)
+
+    def on_deleted(self, event):
+        self.delete_handler(event.src_path)
+
+
+class Boss(object):
+    workers = {}
+    dirpath = '.'
+    output = None
+
+    def __init__(self, dirpath='.', output='output'):
         '''
         local path for load config
         '''
+        if os.path.isdir(dirpath):
+            self.dirpath = dirpath
+        else:
+            print(dirpath + " is invalid, use default path instead")
+        self.output = output
+        if not os.path.isdir(output):
+            print("target directory " + output + " doesn't exist, creating..")
+            os.makedirs(output)
+
         self.scheduler = BackgroundScheduler()
         self.scheduler.start()
-        if self.default_path:
-            self.load(self.default_path)
+
+        self.load_dir(dirpath)
+
+        event_handler = JsonHandler(patterns=["*.json"],
+                                    ignore_directories=True)
+        event_handler.set_handler(oncreated=self.load,
+                                  onmodified=self.load,
+                                  ondeleted=self.remove)
+        observer = Observer()
+        observer.schedule(event_handler, self.dirpath, recursive=True)
+        observer.start()
 
     def load_dir(self, folder):
         (dirpath, dirnames, filenames) = os.walk(folder).next()
-        for fn in filenames:
-            self.load(os.path.join(dirpath, fn))
+        for fname in filenames:
+            if 'json' in fname[-4:]:
+                self.load(os.path.join(dirpath, fname))
 
     def load(self, fp):
         '''
-        given a file
-        TBI: directory
+        given a json file, load and create a task run regularly
         '''
+        # for debugging
+        print(fp + " was loaded!")
         with open(fp) as in_data:
-            data = json.load(in_data)
-            minion = ShellMinion(**data)
-            self.workers.append(minion)
-            self.scheduler.add_job(minion.collect, 'interval',
-                                   name=minion.name+'_'+minion.serial,
-                                   seconds=30
-                                   )
+            try:
+                data = json.load(in_data)
+            except ValueError as e:
+                print(fp + " loaded failed: " + e.message)
+                return None
+            interval = 30
+            if 'interval' in data:
+                interval = data['interval']
+            if fp in self.workers:
+                minion = self.workers[fp]
+                # //memo: Interval can't be modified
+                self.scheduler.modify_job(job_id=fp,
+                                          func=minion.collect,
+                                          name=minion.name+'_'+minion.serial
+                                          )
+
+            else:
+                if self.output:
+                    output = data['output']
+                    if 'dirpath' in output:
+                        output['dirpath'] = os.path.join(self.output,
+                                                         output['dirpath'])
+                    else:
+                        output['dirpath'] = self.output
+                minion = ShellMinion(**data)
+                self.workers[fp] = minion
+                self.scheduler.add_job(minion.collect, 'interval',
+                                       id=fp,
+                                       name=minion.name+'_'+minion.serial,
+                                       seconds=interval
+                                       )
+            return minion
+        return None
 
     def list(self):
         '''
         to list all configs loaded
         format: [squence number] [minion name] [config_path] [status]
         '''
-        for worker in self.workers:
-            print(str(worker))
+        for (fp, worker) in self.workers:
+            print("path=" + fp + "," + str(worker) + ";")
 
-    def remove(self, sn):
+    def remove(self, fp):
         '''
-        given an SN, stop running instance if possible
-        TODO: remove it from the list
+        given file path, stop running instance if possible
         '''
-        self.scheduler.remove_job(sn)
+        if fp in self.workers:
+            self.scheduler.remove_job(job_id=fp)
+            del self.workers[fp]
+            return True
+        return False
 
     def remove_advanced(self):
         '''
@@ -68,12 +137,12 @@ class Boss(object):
         '''
         self.scheduler.shutdown()
 
-    def stop(self, sn):
+    def pause(self, fp):
         '''
         simply stop running instance but not remove config
         TODO: should have timeout if stop failed
         '''
-        self.scheduler.stop(sn)
+        self.scheduler.pause(job_id=fp)
 
     def resume(self, sn):
         # not sure we can do this
@@ -94,9 +163,16 @@ class Boss(object):
 
 
 def main():
-    # b = Boss()
-    # b.load('./e481d81e.json')
-    # b.load('./conf/7ed3caf6.json')
+    # TODO: Add test for loading files
+    # --output for storing monitoring data if using file
+    parser = argparse.ArgumentParser(description="Boss monitoring")
+    parser.add_argument('--dirpath', help="Boss will monitor this directory",
+                        default='.')
+    parser.add_argument('--output',
+                        help="storing monitoring data if using file",
+                        default='output')
+    options = parser.parse_args(sys.argv[1:])
+    b = Boss(**options.__dict__)
     print('Press Ctrl+{0} to exit'.format('Break' if os.name == 'nt' else 'C'))
 
     try:
@@ -105,7 +181,7 @@ def main():
         while True:
             time.sleep(5)
     except (KeyboardInterrupt, SystemExit):
-            pass
+            del b
 
 if __name__ == '__main__':
     main()

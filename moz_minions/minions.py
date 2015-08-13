@@ -5,6 +5,9 @@ import time
 from subprocess import Popen, PIPE
 from enum import IntEnum
 import json
+import logging
+
+logging.basicConfig()
 
 
 class status(IntEnum):
@@ -51,11 +54,16 @@ class Minion(object):
         if 'command' in kwargs:
             self.command = kwargs['command']
         if 'output' in kwargs:
-            self.output_file = kwargs['output']['file']
-        info_to_display ={k: kwargs.get(k, None) for k in ('serial',
-                                                           'command',
-                                                           'output')
-                          }
+            outdir = kwargs['output']['dirpath']
+            if not os.path.isdir(outdir):
+                logging.warning("direcotry not found: " + outdir + ", creating")
+                os.makedirs(outdir)
+            self.output_file = os.path.join(outdir,
+                                            kwargs['output']['file'])
+        info_to_display = {k: kwargs.get(k, None) for k in ('serial',
+                                                            'command',
+                                                            'output')
+                           }
         info_to_display['name'] = name
         self.description = str(info_to_display)
         self.kwargs = kwargs
@@ -110,15 +118,10 @@ class Minion(object):
         '''
         Default output to files with timestamp
         '''
-        try:
-            # TODO: parameter file path from config
-            # Should be a better way to do
-            timestamp = str(int(time.time()))
-            with open(self.output_file + "_" + timestamp, 'w') as oh:
-                oh.write(json.dumps(data))
-        except Exception as e:
-            print(e.message)
-            return False
+        timestamp = str(int(time.time()))
+        filepath = self.output_file + "_" + timestamp
+        with open(filepath, 'w') as oh:
+            oh.write(json.dumps(data))
         return True
 
 

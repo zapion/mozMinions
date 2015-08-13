@@ -1,0 +1,8 @@
+APScheduler==3.0.3
+argparse==1.2.1
+enum34==1.0.4
+futures==3.0.3
+pytz==2015.4
+six==1.9.0
+tzlocal==1.2
+wsgiref==0.1.2

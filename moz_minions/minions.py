@@ -45,20 +45,23 @@ class Minion(object):
 
     def __init__(self, name, **kwargs):
         self.name = name
-        self.description = '{Name: ' + self.name
         if 'serial' in kwargs:
             self.serial = kwargs['serial']
             os.environ['ANDROID_SERIAL'] = self.serial
-            self.description = ", Serial: " + self.serial
         if 'command' in kwargs:
             self.command = kwargs['command']
-            self.description = ", Command: " + self.command
         if 'output' in kwargs:
             self.output_file = kwargs['output']['file']
+        info_to_display ={k: kwargs.get(k, None) for k in ('serial',
+                                                           'command',
+                                                           'output')
+                          }
+        info_to_display['name'] = name
+        self.description = str(info_to_display)
         self.kwargs = kwargs
 
     def __str__(self):
-        print(self.description)
+        return self.description
 
     def _work(self, **kwargs):
         '''

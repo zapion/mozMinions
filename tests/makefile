@@ -1,4 +1,4 @@
-install: venv refresh
+install: venv upgrade
 
 venv:
 ifndef VIRTUAL_ENV

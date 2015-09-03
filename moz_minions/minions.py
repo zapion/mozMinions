@@ -50,23 +50,27 @@ class Minion(object):
     description = ''
 
     def __init__(self, name, **kwargs):
-        self.update(name, **kwargs)
-
-    def update(self, name, **kwargs):
         self.name = name
+        self.kwargs = kwargs
+        self.update()
+
+    def update(self):
+        kwargs = self.kwargs
+        name = self.name
+
         if 'serial' in kwargs:
             self.serial = kwargs['serial']
             os.environ['ANDROID_SERIAL'] = self.serial
         if 'command' in kwargs:
             self.command = kwargs['command']
         if 'output' in kwargs:
-            outdir = '.'
+            self.outdir = '.'
             if 'dirpath' in kwargs['output']:
-                outdir = kwargs['output']['dirpath']
-            if not os.path.isdir(outdir):
-                logging.warning("direcotry not found: " + outdir + ", creating")
-                os.makedirs(outdir)
-            self.output_file = os.path.join(outdir,
+                self.outdir = kwargs['output']['dirpath']
+            if not os.path.isdir(self.outdir):
+                logging.warning("direcotry not found: " + self.outdir + ", creating")
+                os.makedirs(self.outdir)
+            self.output_file = os.path.join(self.outdir,
                                             kwargs['output']['file'])
         info_to_display = {k: kwargs.get(k, None) for k in ('serial',
                                                             'command',
@@ -74,7 +78,6 @@ class Minion(object):
                            }
         info_to_display['name'] = name
         self.description = str(info_to_display)
-        self.kwargs = kwargs
 
     def __str__(self):
         return self.description

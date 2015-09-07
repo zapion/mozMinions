@@ -86,7 +86,7 @@ class Boss(object):
                 return None
             interval = 30
             if 'interval' in data:
-                interval = data['interval']
+                interval = int(data['interval'])
             if fp in self.workers:  # existing minion found
                 minion = self.workers[fp]
                 minion.update(**data)
@@ -130,6 +130,7 @@ class Boss(object):
         given file path, stop running instance if possible
         '''
         if fp in self.workers:
+            self.workers[fp].onstop()
             self.scheduler.remove_job(job_id=fp)
             del self.workers[fp]
             return True

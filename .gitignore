@@ -6,3 +6,5 @@ dist
 .ropeproject
 
 *.swp
+
+output

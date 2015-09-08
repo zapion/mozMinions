@@ -43,9 +43,9 @@ class Minion(object):
     #       will spawn subprocess
     # 2 func types:
     #       if func is string, run it as a system command
-    name = None
+    name = ""
     kwargs = None
-    serial = None
+    serial = ""
     command = None
     description = ''
 
@@ -57,6 +57,8 @@ class Minion(object):
         if 'serial' in kwargs:
             self.serial = kwargs['serial']
             os.environ['ANDROID_SERIAL'] = self.serial
+        else:  # No serial assigned, should pop warning message
+            pass
         if 'command' in kwargs:
             self.command = kwargs['command']
         if 'output' in kwargs:
@@ -66,8 +68,11 @@ class Minion(object):
             if not os.path.isdir(outdir):
                 logging.warning("direcotry not found: " + outdir + ", creating")
                 os.makedirs(outdir)
+            outfile = ''
+            if 'file' in kwargs['output']:
+                outfile = kwargs['output']['file']
             self.output_file = os.path.join(outdir,
-                                            kwargs['output']['file'])
+                                            outfile)
         info_to_display = {k: kwargs.get(k, None) for k in ('serial',
                                                             'command',
                                                             'output')
@@ -87,6 +92,13 @@ class Minion(object):
         raise NotImplementedError(
             "%s's worker function is not yet implemented." % (self.__class__)
             )
+
+    def onstop(self):
+        '''
+        Abtract private interface
+        Return dict with status code if work is done successfully
+        '''
+        pass
 
     def collect(self):
         '''

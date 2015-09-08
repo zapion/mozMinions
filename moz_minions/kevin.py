@@ -3,6 +3,7 @@ import os
 import copy
 import json
 import time
+import logging
 import psutil
 import commands
 import datetime
@@ -16,7 +17,7 @@ class MtbfToRaptorMinion(Minion):
         Minion.update(self)
         self.conf = {}
         if 'job_info' in self.kwargs:
-            for keyname in ['pid', 'program', 'path', 'jobname']:
+            for keyname in ['pid', 'program', 'jobname']:
                 if keyname in self.kwargs['job_info']:
                     self.conf[keyname] = self.kwargs['job_info'][keyname]
                 else:
@@ -25,14 +26,15 @@ class MtbfToRaptorMinion(Minion):
                 if keyname in self.kwargs['job_info']:
                     self.conf[keyname] = self.kwargs['job_info'][keyname]
                 else:
-                    print "Missing setting [%s] in configuration file!!!" % keyname
+                    logging.warning("Missing setting [%s] in configuration file!!!" % keyname)
         else:
             raise Exception("Missing job_info configuration setting in your conf file!")
 
+        self.path = self.kwargs['path']
+
         self.output_data = {}
         for data_name in ['mtbf', 'events']:
-            output_file_name = str(self.conf['pid']) + "_" + data_name + ".json"
-            output_file_path = os.path.join(self.outdir, output_file_name)
+            output_file_path = self.output_file + "_" + data_name + ".json"
             self.output_data[data_name] = {'json_path': output_file_path, 'data': None}
 
     def get_build_id(self):
@@ -75,10 +77,15 @@ class MtbfToRaptorMinion(Minion):
         return timestamp_obj
 
     def get_running_time_in_hr(self):
-        current_time = datetime.datetime.now()
-        job_create_time = datetime.datetime.strptime(time.ctime(os.path.getctime(self.conf['path'])), "%a %b %d %H:%M:%S %Y")
-        running_time = current_time - job_create_time
-        return running_time.total_seconds() / 60.0 / 60.0
+        result = 0.0
+        if os.path.exists(self.path):
+            current_time = datetime.datetime.now()
+            job_create_time = datetime.datetime.strptime(time.ctime(os.path.getctime(self.path)), "%a %b %d %H:%M:%S %Y")
+            running_time = current_time - job_create_time
+            result = running_time.total_seconds() / 60.0 / 60.0
+        else:
+            logging.warning("configure file [%s] is not exist!" % self.path)
+        return result
 
     def generate_raptor_mtbf_data(self):
         build_configuration = self.conf['jobname'].split(".")
@@ -111,23 +118,30 @@ class MtbfToRaptorMinion(Minion):
                                   }]}
         return event_data
 
-    def create_json_files(self, data):
-        for keyname in data.keys():
-            with open(data[keyname]['json_path'], "w") as json_output_file:
-                json.dump(data[keyname]['data'], json_output_file)
+    def _output(self, data):
+        for keyname in ['mtbf','events']:
+            if keyname in data:
+                with open(data[keyname]['json_path'], "w") as json_output_file:
+                    json.dump(data[keyname]['data'], json_output_file)
+                    logging.info("Json file [%s] updated!" % data[keyname]['json_path'])
+            else:
+                logging.debug("output data : %s" % data)
+                logging.warning("Missing key[%s] when data generating!!" % keyname)
 
     def upload_raptor_data(self, output_data, host_name, port_no, user_name, pwd, database_name):
         cmd_format = "raptor submit %s --host %s --port %s --username %s --password %s --database %s"
         for key_name in output_data.keys():
             if os.path.exists(output_data[key_name]['json_path']):
+
                 cmd_str = cmd_format % (output_data[key_name]['json_path'], host_name, str(port_no), user_name, pwd, database_name)
+                logging.debug("exeucte raptor cli command %s" % cmd_str)
                 result = commands.getstatusoutput(cmd_str)
                 if result[0] != 0:
-                    print "upload raptor data error: %s %s" % result
+                    logging.error("upload raptor data error: %s %s" % result)
                 else:
-                    print "upload raptor data successfully!"
+                    logging.info("upload raptor data successfully!")
             else:
-                print "Json file is not exist!!"
+                logging.error("Json file is not exist!! Current json file path: %s" % output_data[key_name]['json_path'])
 
     def check_process_exist(self):
         for process in psutil.process_iter():
@@ -141,13 +155,17 @@ class MtbfToRaptorMinion(Minion):
             self.output_data['mtbf']['data'] = self.generate_raptor_mtbf_data()
             if len(self.output_data['mtbf']['data']) > 0:
                 self.output_data['events']['data'] = self.generate_raptor_event_data(self.output_data['mtbf']['data'])
-                self.create_json_files(self.output_data)
-                print "current result: %s" % self.output_data
-
-        # if not exist, kill the conf,  submit the running time and data to raptor
+                logging.debug("current result: %s" % self.output_data)
+                return self.output_data
+        #if not exist, kill the conf
         else:
-                self.upload_raptor_data(self.output_data, self.conf['host_name'], self.conf['port_no'],
-                                        self.conf['user_name'], self.conf['pwd'], self.conf['database_name'])
-                if os.path.exists(self.conf['path']):
-                    os.remove(self.conf['path'])
+            logging.info("process not exist!, continue to remove conf file %s" % self.path)
+            if os.path.exists(self.path):
+                os.remove(self.path)
+                logging.info("conf file [%s] removed! " % self.path)
+
+    def on_stop(self):
+        # submit the running time and data to raptor
+        self.upload_raptor_data(self.output_data, self.conf['host_name'], self.conf['port_no'],
+                                self.conf['user_name'], self.conf['pwd'], self.conf['database_name'])
 

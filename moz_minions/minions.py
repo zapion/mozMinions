@@ -107,9 +107,8 @@ class Minion(object):
             if self.command:
                 banana['command'] = self.command
         except Exception as e:
-            print(e)
             banana['status'] = status.critical
-            banana['err_msg'] = e.message()
+            banana['err_msg'] = e.message
         self.banana = banana
         self._output(banana)
         return banana

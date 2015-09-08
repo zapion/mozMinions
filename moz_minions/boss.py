@@ -5,6 +5,7 @@ import json
 import time
 import argparse
 import logging
+import importlib
 from apscheduler.schedulers.background import BackgroundScheduler
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
@@ -107,11 +108,18 @@ class Boss(object):
                                                          output['dirpath'])
                     else:
                         output['dirpath'] = self.output
-                minion = ShellMinion(**data)
+                if 'type' not in data:
+                    raise Exception("Missing type attribute in your configruation file [%s]!!!" % fp)
+                data['path'] = fp
+                module_path = data['type'][:data['type'].rfind(".")]
+                object_name = data['type'][data['type'].rfind(".") + 1:]
+                minion_module = getattr(importlib.import_module(module_path), object_name)
+
+                minion = minion_module(**data)
                 self.workers[fp] = minion
                 self.scheduler.add_job(minion.collect, 'interval',
                                        id=fp,
-                                       name=minion.name+'_'+minion.serial,
+                                       name=minion.name + '_' + minion.serial,
                                        seconds=interval
                                        )
             return minion

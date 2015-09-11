@@ -64,14 +64,17 @@ class Minion(object):
         if 'command' in kwargs:
             self.command = kwargs['command']
         if 'output' in kwargs:
-            self.outdir = '.'
+            outdir = '.'
             if 'dirpath' in kwargs['output']:
-                self.outdir = kwargs['output']['dirpath']
-            if not os.path.isdir(self.outdir):
-                logging.warning("direcotry not found: " + self.outdir + ", creating")
-                os.makedirs(self.outdir)
-            self.output_file = os.path.join(self.outdir,
-                                            kwargs['output']['file'])
+                outdir = kwargs['output']['dirpath']
+            if not os.path.isdir(outdir):
+                logging.warning("direcotry not found: " + outdir + ", creating")
+                os.makedirs(outdir)
+            outfile = ''
+            if 'file' in kwargs['output']:
+                outfile = kwargs['output']['file']
+            self.output_file = os.path.join(outdir,
+                                            outfile)
         info_to_display = {k: kwargs.get(k, None) for k in ('serial',
                                                             'command',
                                                             'output')

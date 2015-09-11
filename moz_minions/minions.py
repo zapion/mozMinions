@@ -50,10 +50,14 @@ class Minion(object):
     description = ''
 
     def __init__(self, name, **kwargs):
-        self.update(name, **kwargs)
-
-    def update(self, name, **kwargs):
         self.name = name
+        self.kwargs = kwargs
+        self.update()
+
+    def update(self):
+        kwargs = self.kwargs
+        name = self.name
+
         if 'serial' in kwargs:
             self.serial = kwargs['serial']
             os.environ['ANDROID_SERIAL'] = self.serial
@@ -79,7 +83,6 @@ class Minion(object):
                            }
         info_to_display['name'] = name
         self.description = str(info_to_display)
-        self.kwargs = kwargs
 
     def __str__(self):
         return self.description
@@ -116,9 +119,8 @@ class Minion(object):
             if self.command:
                 banana['command'] = self.command
         except Exception as e:
-            print(e)
             banana['status'] = status.critical
-            banana['err_msg'] = e.message()
+            banana['err_msg'] = e.message
         self.banana = banana
         self._output(banana)
         return banana

@@ -9,7 +9,6 @@ import importlib
 from apscheduler.schedulers.background import BackgroundScheduler
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
-from minions import ShellMinion
 
 
 logging.basicConfig(level=logging.INFO)
@@ -47,11 +46,15 @@ class Boss(object):
         logger.info("Initialing BOSS")
         if os.path.isdir(dirpath):
             self.dirpath = dirpath
+            logger.info("loading job config folder: " + dirpath)
         else:
-            print(dirpath + " is invalid, use default path instead")
+            logger.info(dirpath + " is invalid, use default path instead")
         self.output = output
+        logger.info("Setup output folder: " + output)
         if not os.path.isdir(output):
-            print("target directory " + output + " doesn't exist, creating..")
+            logger.info("target directory "
+                        + output
+                        + " doesn't exist, creating..")
             os.makedirs(output)
 
         self.scheduler = BackgroundScheduler()
@@ -109,11 +112,18 @@ class Boss(object):
                     else:
                         output['dirpath'] = self.output
                 if 'type' not in data:
-                    raise Exception("Missing type attribute in your configruation file [%s]!!!" % fp)
+                    logger.error("Missing type attribute in \
+                                    your configruation file [%s]" % fp)
+                    return None
                 data['path'] = fp
                 module_path = data['type'][:data['type'].rfind(".")]
                 object_name = data['type'][data['type'].rfind(".") + 1:]
-                minion_module = getattr(importlib.import_module(module_path), object_name)
+                try:
+                    minion_module = getattr(importlib.import_module(
+                                            module_path), object_name)
+                except Exception as e:
+                    logger.exception(e)
+                    return None
 
                 minion = minion_module(**data)
                 self.workers[fp] = minion
@@ -131,7 +141,7 @@ class Boss(object):
         format: [squence number] [minion name] [config_path] [status]
         '''
         for (fp, worker) in self.workers:
-            print("path=" + fp + "," + str(worker) + ";")
+            logger.info("path=" + fp + "," + str(worker) + ";")
 
     def remove(self, fp):
         '''
@@ -194,7 +204,8 @@ def main():
                         default='output')
     options = parser.parse_args(sys.argv[1:])
     b = Boss(**options.__dict__)
-    print('Press Ctrl+{0} to exit'.format('Break' if os.name == 'nt' else 'C'))
+    logger.info('Press Ctrl+{0} to exit'.format(
+                'Break' if os.name == 'nt' else 'C'))
 
     try:
         # This is here to simulate application activity (which keeps the main

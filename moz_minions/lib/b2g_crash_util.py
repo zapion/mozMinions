@@ -13,6 +13,8 @@ from b2g_util.util.adb_helper import AdbWrapper
 SUBMIT_URL = "https://crash-reports.mozilla.com/submit"
 REPORT_URL = "https://crash-stats.mozilla.com/report/index/"
 BASE_DIR = "/data/b2g/mozilla/Crash Reports/"
+SUBMITTED_DIR = BASE_DIR + 'submitted'
+PENDING_DIR = BASE_DIR + 'pending'
 
 
 def get_current_all_dev_serials():
@@ -38,9 +40,7 @@ class CrashAgent(object):
 
     def fetch_crash_info(self):
         scan_cmd = ['adb', '-s', self.serial, 'shell', 'ls -l']
-        submit_dir = BASE_DIR + 'submitted'
-        pending_dir = BASE_DIR + 'pending'
-        p = subprocess.Popen(scan_cmd + [submit_dir],
+        p = subprocess.Popen(scan_cmd + [SUBMITTED_DIR],
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
         output = p.communicate()[0]
@@ -54,7 +54,7 @@ class CrashAgent(object):
                 if cid not in submitted_set:
                     submitted_set.add(REPORT_URL + cid)
 
-        q = subprocess.Popen(scan_cmd + [pending_dir],
+        q = subprocess.Popen(scan_cmd + [PENDING_DIR],
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
         output = q.communicate()[0]
@@ -73,29 +73,33 @@ class CrashAgent(object):
         crash_info = self.fetch_crash_info()
         submitted = crash_info['submitted']
         pending = crash_info['pending']
-        pending_dir = BASE_DIR + 'pending'
         processed = set()
         for pendi in set(pending):
             # Get pending dump and submit
             dmp = pendi + ".dmp"
             extra = pendi + ".extra"
-            AdbWrapper.adb_pull('"' + pending_dir + "/" + dmp + '"',
+            AdbWrapper.adb_pull(PENDING_DIR + "/" + dmp,
                                 dmp,
                                 self.serial)
-            AdbWrapper.adb_pull('"' + pending_dir + "/" + extra + '"',
+            AdbWrapper.adb_pull(PENDING_DIR + "/" + extra,
                                 extra,
                                 self.serial)
 
             ret = cli([dmp])
             if ret:
+                processed.add(pendi)
                 submitted.append(ret[0])
                 AdbWrapper.adb_shell("rm \""
-                                     + pending_dir
-                                     + "/" + dmp + "\"")
+                                     + PENDING_DIR
+                                     + "/" + dmp + "\"",
+                                     self.serial)
                 AdbWrapper.adb_shell("rm \""
-                                     + pending_dir
-                                     + "/" + extra + "\"")
-                processed.add(pendi)
+                                     + PENDING_DIR
+                                     + "/" + extra + "\"",
+                                     self.serial)
+                AdbWrapper.adb_shell("rm -r \""
+                                     + SUBMITTED_DIR + "\"",
+                                     self.serial)
             os.remove(dmp)
             os.remove(extra)
         return {'crash_info': {
@@ -149,7 +153,7 @@ def main():
     serial_list = get_current_all_dev_serials()
     total_crash_num = 0
     for serial in serial_list:
-        crash_info = CrashAgent(serial).get_crash()
+        crash_info = CrashAgent(serial).get_crash()['crash_info']
         print crash_info
         total_crash_num += (len(crash_info['submitted'])
                             + len(crash_info['pending']))

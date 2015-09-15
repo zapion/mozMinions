@@ -18,7 +18,10 @@ class CrashMinion(Minion):
     def _output(self, data):
         # if sent, save crash-stat link
         # TODO if fail, try to get symbol and extract dump
-        if 'crash_info' not in data:
+        if not isinstance(data, dict) or 'crash_info' not in data:
+            return False
+        crash_info = data.get('crash_info')
+        if not crash_info.get('submitted') and not crash_info.get('pending'):
             return False
         timestamp = time.strftime('%Y-%m-%d-%H-%M-%S+0000', time.gmtime())
         filepath = self.output_file + "_" + timestamp

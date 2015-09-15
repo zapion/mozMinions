@@ -1,5 +1,9 @@
 {
   "name": "b2g-ps cmd",
+  "type": "moz_minions.minions.ShellMinion",
   "serial": "e481d81e",
-  "command": "adb shell b2g-ps"
+  "command": "adb shell b2g-ps",
+  "output": {
+            "file": "b2g_ps"
+            }
   }

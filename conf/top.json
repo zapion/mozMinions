@@ -1,5 +1,8 @@
 {
   "name": "top",
   "serial": "",
-  "command": "adb shell top -m 10 -s cpu -n 1"
+  "command": "adb shell top -m 10 -s cpu -n 1",
+  "output": {
+            "file": "top"
+            }
   }

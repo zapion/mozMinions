@@ -51,12 +51,11 @@ class Minion(object):
 
     def __init__(self, name, **kwargs):
         self.name = name
-        self.kwargs = kwargs
-        self.update()
+        self.update(**kwargs)
 
-    def update(self):
-        kwargs = self.kwargs
-        name = self.name
+    def update(self, **kwargs):
+        if 'name' in kwargs:
+            name = self.name
 
         if 'serial' in kwargs:
             self.serial = kwargs['serial']
@@ -81,7 +80,7 @@ class Minion(object):
                                                             'command',
                                                             'output')
                            }
-        info_to_display['name'] = name
+        info_to_display['name'] = self.name
         self.description = str(info_to_display)
 
     def __str__(self):

@@ -1,5 +1,9 @@
 {
   "name": "b2g-procrank",
+  "type": "moz_minions.minions.ShellMinion",
   "serial": "",
-  "command": "adb shell b2g-procrank --oom"
+  "command": "adb shell b2g-procrank --oom",
+  "output": {
+            "file": "b2g_procrank"
+            }
   }

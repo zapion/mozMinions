@@ -1,5 +1,9 @@
 {
   "name": "b2g-info",
+  "type": "moz_minions.minions.ShellMinion",
   "serial": "",
-  "command": "adb shell b2g-info"
+  "command": "adb shell b2g-info",
+  "output": {
+            "file": "b2g_info"
+            }
   }

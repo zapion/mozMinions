@@ -1,0 +1,9 @@
+{
+  "name": "crash_reporter",
+  "type": "moz_minions.crash_minion.CrashMinion",
+  "serial": "e47cd887",
+  "output": {
+            "dirpath": "e47cd887",
+            "file": "crash_report"
+            }
+}

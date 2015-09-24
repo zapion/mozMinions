@@ -1,5 +1,9 @@
 {
   "name": "b2g_ps",
+  "type": "moz_minions.minions.ShellMinion",
   "serial": "",
-  "command": "adb shell b2g-ps -t -p -P --oom"
+  "command": "adb shell b2g-ps -t -p -P --oom",
+  "output": {
+            "file": "b2g_ps"
+            }
   }

@@ -85,13 +85,28 @@ class Boss(object):
         with open(fp) as in_data:
             try:
                 data = json.load(in_data)
+                data['path'] = fp
             except ValueError as e:
                 logger.warning(fp + " loaded failed: " + e.message)
                 return None
             interval = 30
             if 'interval' in data:
                 interval = int(data['interval'])
+            if self.output:
+                # TODO: test case for no 'output' key in data
+                if 'output' not in data:
+                    data['output'] = {}
+                output = data['output']
+                if 'dirpath' in output:
+                    output['dirpath'] = os.path.join(self.output, output['dirpath'])
+                else:
+                    output['dirpath'] = self.output
+                if 'type' not in data:
+                    logger.error("Missing type attribute in \
+                                    your configruation file [%s]" % fp)
+                    return None
             if fp in self.workers:  # existing minion found
+                logger.info("Update exisitng minion [%s]" % fp)
                 minion = self.workers[fp]
                 minion.update(**data)
                 # //memo: Interval can't be modified
@@ -100,22 +115,8 @@ class Boss(object):
                                           name=minion.name+'_'+minion.serial
                                           )
 
-            else:  # Create new minion
-                if self.output:
-                    # TODO: test case for no 'output' key in data
-                    if 'output' not in data:
-                        data['output'] = {}
-                    output = data['output']
-                    if 'dirpath' in output:
-                        output['dirpath'] = os.path.join(self.output,
-                                                         output['dirpath'])
-                    else:
-                        output['dirpath'] = self.output
-                if 'type' not in data:
-                    logger.error("Missing type attribute in \
-                                    your configruation file [%s]" % fp)
-                    return None
-                data['path'] = fp
+            else:  # Create new
+                logger.info("Create new minion [%s]" % fp)
                 module_path = data['type'][:data['type'].rfind(".")]
                 object_name = data['type'][data['type'].rfind(".") + 1:]
                 try:

@@ -108,7 +108,7 @@ class MtbfToRaptorMinion(Minion):
     def generate_raptor_mtbf_data(self):
         build_configuration = self.conf['jobname'].split(".")
         result = {'key': self.name}
-        result['fields'] = {"failures": self.get_device_crash_no(), "value": self.get_running_time_in_hr()}
+        result['fields'] = {"failures": self.get_device_crash_no() + 1, "value": self.get_running_time_in_hr()}
         result['tags'] = {"device": build_configuration[0].replace("flamekk","flame-kk"),
                           "node": build_configuration[2],
                           "deviceId": self.serial,

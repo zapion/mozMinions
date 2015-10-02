@@ -41,8 +41,9 @@ class MtbfToRaptorMinion(Minion):
         self.path = kwargs['path']
 
         self.output_data = {}
+        conf_name_list = os.path.splitext(os.path.basename(kwargs['path']))
         for data_name in ['mtbf', 'events']:
-            output_file_path = self.output_file + "_" + data_name + ".json"
+            output_file_path = os.path.join(kwargs['output']['dirpath'], conf_name_list[0] + "_" + data_name + ".json")
             self.output_data[data_name] = {'json_path': output_file_path,
                                            'data': None}
 
@@ -88,7 +89,7 @@ class MtbfToRaptorMinion(Minion):
                                       input_str,
                                       datetime_format="%Y%m%d%H%M%S"):
         datetime_obj = datetime.datetime.strptime(input_str, datetime_format)
-        timestamp_obj = time.mktime(datetime_obj.timetuple()) * 1000
+        timestamp_obj = str((int(time.mktime(datetime_obj.timetuple()) * 1000) * 1000000) + 1)
         return timestamp_obj
 
     def get_running_time_in_hr(self):
@@ -106,36 +107,26 @@ class MtbfToRaptorMinion(Minion):
 
     def generate_raptor_mtbf_data(self):
         build_configuration = self.conf['jobname'].split(".")
-        result = {self.name: []}
-        insert_dict = {}
-        insert_dict['model'] = build_configuration[0]
-        insert_dict['branch'] = build_configuration[1]
-        insert_dict['node'] = build_configuration[2]
-        insert_dict['memory'] = build_configuration[3]
-        insert_dict['runningHr'] = self.get_running_time_in_hr()
-        insert_dict['buildid'] = self.get_build_id()
-        insert_dict['time'] = self.convert_datetime_to_timestamp(insert_dict
-                                                                 ['buildid'])
-        insert_dict['crashNo'] = self.get_device_crash_no()
-        insert_dict['deviceId'] = self.serial
-        result[self.name].append(insert_dict)
-        return result
+        result = {'key': self.name}
+        result['fields'] = {"failures": self.get_device_crash_no() + 1, "value": self.get_running_time_in_hr()}
+        result['tags'] = {"device": build_configuration[0].replace("flamekk","flame-kk"),
+                          "node": build_configuration[2],
+                          "deviceId": self.serial,
+                          "branch": build_configuration[1].replace("vmaster","master"),
+                          "memory": build_configuration[3]}
+        result['timestamp'] = self.convert_datetime_to_timestamp(self.get_build_id())
+        return [result]
 
     def generate_raptor_event_data(self, mtbf_data):
-        tmp_list = self.conf['jobname'].split(".")
-        branch_name = tmp_list[1]
-        device_name = tmp_list[0]
-        memory_set = tmp_list[3]
-        event_data = {'events': [{"title": "buildInfo",
-                                  "text": "buildid: " +
-                                          mtbf_data[self.name][0]['buildid'],
-                                  "time": mtbf_data[self.name][0]['time'],
-                                  "tags": None,
-                                  "branch": branch_name,
-                                  "device": device_name,
-                                  "memory": memory_set
-                                  }]}
-        return event_data
+        event_data = {"timestamp": mtbf_data[0]['timestamp'],
+                      "tags": {"test": self.name,
+                               "device": mtbf_data[0]['tags']['device'],
+                               "memory": mtbf_data[0]['tags']['memory'],
+                               "branch": mtbf_data[0]['tags']['branch'],
+                               "title": "BuildId"},
+                      "key": "annotation",
+                      "fields": {"text": self.get_build_id()}}
+        return [event_data]
 
     def _output(self, data):
         for keyname in ['mtbf', 'events']:
@@ -157,7 +148,7 @@ class MtbfToRaptorMinion(Minion):
                            pwd,
                            database_name):
         cmd_format = "raptor submit %s --host %s --port %s --username \
-                     %s --password %s --database %s"
+                     %s --password %s --database %s --protocol https"
         for key_name in output_data.keys():
             if os.path.exists(output_data[key_name]['json_path']):
 
@@ -181,7 +172,7 @@ class MtbfToRaptorMinion(Minion):
     def check_process_exist(self):
         for process in psutil.process_iter():
             if process.pid == int(self.conf['pid']) and \
-                    self.conf['program'] in process.name():
+                    self.conf['program'] in process.cmdline():
                 return True
         return False
 
@@ -203,7 +194,7 @@ class MtbfToRaptorMinion(Minion):
                 os.remove(self.path)
                 logging.info("conf file [%s] removed! " % self.path)
 
-    def on_stop(self):
+    def onstop(self):
         # submit the running time and data to raptor
         self.upload_raptor_data(self.output_data,
                                 self.conf['host_name'],

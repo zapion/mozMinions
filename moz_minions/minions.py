@@ -55,7 +55,7 @@ class Minion(object):
 
     def update(self, **kwargs):
         if 'name' in kwargs:
-            name = self.name
+            self.name = kwargs['name']
 
         if 'serial' in kwargs:
             self.serial = kwargs['serial']
@@ -82,6 +82,8 @@ class Minion(object):
                            }
         info_to_display['name'] = self.name
         self.description = str(info_to_display)
+        success_file = kwargs['path'].replace('json', 'success')
+        self.last_success_cmd = "touch " + os.path.join(outdir, success_file)
 
     def __str__(self):
         return self.description
@@ -110,7 +112,10 @@ class Minion(object):
         '''
         banana = {}
         try:
-            banana.update(self._work())
+            ret = self._work()
+            if ret:
+                os.system(self.last_success_cmd)
+            banana.update(ret)
             banana['name'] = self.name
             banana['serial'] = self.serial
             banana['status'] = status.ok

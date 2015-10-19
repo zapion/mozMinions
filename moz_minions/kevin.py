@@ -70,6 +70,7 @@ class MtbfToRaptorMinion(Minion):
                         crash_file_name = line.split(" ")[-1].split(".")[0]
                         if crash_file_name not in crash_file_list:
                             crash_file_list.append(crash_file_name)
+                            logging.info("Found a new crash file: [%s]" % crash_file_name)
 
             crash_no = len(crash_file_list)
             return crash_no

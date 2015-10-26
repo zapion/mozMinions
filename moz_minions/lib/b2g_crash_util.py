@@ -120,7 +120,7 @@ def submit(dump, extra):
     data = read_extra(extra)
     if "ServerURL" in data:
         del data["ServerURL"]
-    data['minidump_file'] = open(dump, "rb")
+    data['upload_file_minidump'] = open(dump, "rb")
     datagen, headers = multipart_encode(data)
     request = urllib2.Request(SUBMIT_URL, datagen, headers)
     res = urllib2.urlopen(request)

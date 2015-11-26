@@ -1,0 +1,57 @@
+#!/bin/sh
+
+INSTALL_DIR=%INS%
+JOB_DIR=%JOB%
+WORK_DIR=%WORK%
+OUT_DIR=$INSTALL_DIR/moz_minions/output
+
+start() {
+    cd $INSTALL_DIR
+    virtualenv /tmp/minion_env
+    . /tmp/minion_env/bin/activate
+    python setup.py install
+    if [ -d $WORK_DIR ]
+    then
+        rm -rf $WORK_DIR
+    fi
+    mkdir $WORK_DIR
+    cp -f $JOB_DIR/* $WORK_DIR
+    
+    minions_run --dirpath=$WORK_DIR --output=$OUT_DIR 2> $OUT_DIR/boss.log &
+    echo "Boss started."
+}
+ 
+stop() {
+    pid=`ps -ef | grep 'minions_run' | grep -v grep | awk '{ print $2 }'`
+    echo $pid
+    if ! [ -z $pid ]
+    then
+        kill $pid
+        echo "Boss killed."
+    else
+        echo "No Boss found. (yay)"
+    fi
+    if [ -d /tmp/minion_env ]
+    then
+        rm -rf /tmp/minion_env
+    fi
+    sleep 2
+}
+ 
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop   
+    ;;
+  restart)
+    stop
+    start
+    ;;
+  *)
+    echo "Usage: /etc/init.d/minion_service {start|stop|restart}"
+    exit 1
+esac
+exit 0
+
